@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Displej čísel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Displej">
+<meta name="theme-color" content="#000000">
+<style>
+  :root { --bg: #000; --fg: #fff; color-scheme: dark; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; cursor: none;
+  }
+  #stage {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  }
+  #num, #probe {
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1;
+    letter-spacing: 0; white-space: nowrap;
+  }
+  #probe { position: absolute; visibility: hidden; font-size: 100px; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="num"></div></div>
+<span id="probe">000</span>
+<script>
+(function () {
+  var num = document.getElementById('num');
+  var probe = document.getElementById('probe');
+  var value = '';
+
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    probe.textContent = value.indexOf(',') >= 0 ? '0,00' : '000';
+    var pw = probe.getBoundingClientRect().width || 180;
+    var byWidth = (w * 0.96) / pw * 100;
+    var byHeight = (h * 0.96) / 0.75; // výška číslic ≈ 0,72 em
+    num.style.fontSize = Math.floor(Math.min(byWidth, byHeight)) + 'px';
+  }
+
+  function render() { num.textContent = value; fit(); }
+
+  var wakeLock = null;
+  function keepAwake() {
+    try {
+      if (navigator.wakeLock && !wakeLock) {
+        navigator.wakeLock.request('screen').then(function (l) {
+          wakeLock = l;
+          l.addEventListener('release', function () { wakeLock = null; });
+        }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (/^[0-9]$/.test(k)) {
+      if (value.replace(',', '').length < 3) value += k;
+    } else if (k === ',' || k === '.') {
+      if (value.indexOf(',') < 0 && value.length < 3) value = (value === '' ? '0' : value) + ',';
+    } else if (k === 'Backspace') {
+      value = value.slice(0, -1);
+    } else if (k === 'Escape' || k === 'Delete' || k === 'Enter' || k === 'Clear') {
+      value = '';
+    } else {
+      return;
+    }
+    e.preventDefault();
+    render();
+    keepAwake();
+  });
+
+  document.addEventListener('pointerdown', keepAwake);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') keepAwake();
+  });
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function () { setTimeout(fit, 150); });
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+  fit();
+  render();
+  keepAwake();
+})();
+</script>
+</body>
+</html>
